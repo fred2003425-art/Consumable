@@ -124,9 +124,12 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">3. 自訂零食類別 *</label>
-            <input type="text" id="itemCategory" list="categoryDatalist" placeholder="輸入或選擇類別" required class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-theme-300 text-sm">
-            <datalist id="categoryDatalist"></datalist>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">3. 選擇或輸入零食類別 *</label>
+            <select id="itemCategorySelect" onchange="handleCategorySelectChange()" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-theme-300 text-sm bg-white mb-2">
+              <option value="">-- 請選擇已保存的類別 --</option>
+              <option value="__NEW__">+ 新增自訂類別...</option>
+            </select>
+            <input type="text" id="itemCustomCategory" placeholder="請輸入新類別名稱" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-theme-300 text-sm hidden">
           </div>
 
           <div>
@@ -135,7 +138,7 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">5. 商品封面圖片 (可貼網址、上傳圖片或直接 Ctrl+V 貼上截圖)</label>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">5. 商品封面圖片 (可貼網址、上傳圖片或直接 CTRL+V 貼上截圖)</label>
             <input type="url" id="itemImage" placeholder="https://... 或下方直接選擇檔案/貼上截圖" onchange="previewImageSrc(this.value)" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-theme-300 text-sm mb-2">
             
             <div class="flex items-center gap-2 mb-2">
@@ -222,18 +225,42 @@
         if (data) {
           Object.keys(data).forEach(key => items.push({ id: key, ...data[key] }));
         }
-        updateCategoryDatalist();
+        updateCategoryOptions();
         renderItems();
       });
     }
 
-    function updateCategoryDatalist() {
+    function updateCategoryOptions() {
       const categories = [...new Set(items.map(i => i.category))].filter(Boolean);
-      document.getElementById('categoryDatalist').innerHTML = categories.map(c => `<option value="${c}">`).join('');
+      
+      // 更新搜尋頁面的篩選器
       const filter = document.getElementById('categoryFilter');
-      const current = filter.value;
+      const currentFilter = filter.value;
       filter.innerHTML = '<option value="">所有自訂類別</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
-      filter.value = current;
+      filter.value = currentFilter;
+
+      // 更新 Modal 內的類別下拉選單
+      const select = document.getElementById('itemCategorySelect');
+      const currentSelect = select.value;
+      select.innerHTML = '<option value="">-- 請選擇已保存的類別 --</option>' +
+                         categories.map(c => `<option value="${c}">${c}</option>`).join('') +
+                         '<option value="__NEW__">+ 新增自訂類別...</option>';
+      select.value = currentSelect;
+    }
+
+    function handleCategorySelectChange() {
+      const select = document.getElementById('itemCategorySelect');
+      const customInput = document.getElementById('itemCustomCategory');
+
+      if (select.value === '__NEW__') {
+        customInput.classList.remove('hidden');
+        customInput.required = true;
+        customInput.focus();
+      } else {
+        customInput.classList.add('hidden');
+        customInput.required = false;
+        customInput.value = '';
+      }
     }
 
     function validateSuffixInput() {
@@ -242,9 +269,7 @@
       const isValidLength = input.value.length === 8;
       document.getElementById('codeError').classList.toggle('hidden', isValidLength || !input.value);
 
-      // 重設重複警示狀態
       document.getElementById('duplicateError').classList.add('hidden');
-
       return isValidLength;
     }
 
@@ -292,8 +317,11 @@
         document.getElementById('editingItemId').value = '';
         document.getElementById('modalTitle').innerText = '新增零食貨品';
         document.getElementById('duplicateError').classList.add('hidden');
+        document.getElementById('itemCustomCategory').classList.add('hidden');
+        document.getElementById('itemCustomCategory').required = false;
         clearImagePreview();
       }
+      updateCategoryOptions();
       document.getElementById('itemModal').classList.remove('hidden');
     }
 
@@ -309,10 +337,24 @@
       document.getElementById('modalTitle').innerText = '編輯零食貨品';
       document.getElementById('itemSuffix').value = item.code ? item.code.replace('4000', '') : '';
       document.getElementById('itemName').value = item.name || '';
-      document.getElementById('itemCategory').value = item.category || '';
       document.getElementById('itemPieceCount').value = item.pieceCount || '';
       document.getElementById('duplicateError').classList.add('hidden');
       
+      updateCategoryOptions();
+      const select = document.getElementById('itemCategorySelect');
+      const customInput = document.getElementById('itemCustomCategory');
+
+      if (item.category && Array.from(select.options).some(o => o.value === item.category)) {
+        select.value = item.category;
+        customInput.classList.add('hidden');
+        customInput.required = false;
+      } else if (item.category) {
+        select.value = '__NEW__';
+        customInput.value = item.category;
+        customInput.classList.remove('hidden');
+        customInput.required = true;
+      }
+
       if (item.image && item.image.startsWith('data:image')) {
         currentBase64Image = item.image;
         document.getElementById('itemImage').value = '';
@@ -406,12 +448,29 @@
       e.preventDefault();
       if (!validateSuffixInput()) return;
 
+      // 取得類別內容
+      const selectValue = document.getElementById('itemCategorySelect').value;
+      const customValue = document.getElementById('itemCustomCategory').value.trim();
+      let finalCategory = '';
+
+      if (selectValue === '__NEW__') {
+        if (!customValue) {
+          alert('請輸入新類別名稱！');
+          return;
+        }
+        finalCategory = customValue;
+      } else if (selectValue) {
+        finalCategory = selectValue;
+      } else {
+        alert('請選擇或輸入類別！');
+        return;
+      }
+
       const editId = document.getElementById('editingItemId').value;
       const targetCode = '4000' + document.getElementById('itemSuffix').value;
 
-      // 🔍 檢查編號是否重複 (排除正在編輯的同一筆資料)
+      // 檢查編號重複
       const isDuplicate = items.some(item => item.code === targetCode && item.id !== editId);
-
       if (isDuplicate) {
         document.getElementById('duplicateError').classList.remove('hidden');
         return;
@@ -422,7 +481,7 @@
       const itemData = {
         code: targetCode,
         name: document.getElementById('itemName').value,
-        category: document.getElementById('itemCategory').value,
+        category: finalCategory,
         pieceCount: document.getElementById('itemPieceCount').value,
         image: imageUrl || ''
       };
