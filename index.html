@@ -110,7 +110,7 @@
           
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. 貨品編號 (4000 + 自行輸入 8 位數字) *</label>
-            <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-theme-300">
+            <div id="codeContainer" class="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-theme-300">
               <span class="bg-theme-100 text-theme-800 px-3.5 py-2 font-mono font-bold border-r border-slate-200 text-sm">4000</span>
               <input type="text" id="itemSuffix" maxlength="8" placeholder="輸入後8位數字" oninput="validateSuffixInput()" required class="flex-1 px-3 py-2 text-sm font-mono tracking-wider focus:outline-none">
             </div>
@@ -161,7 +161,7 @@
 
           <div class="pt-3 border-t border-purple-100 flex justify-end space-x-3">
             <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium">取消</button>
-            <button type="submit" class="px-5 py-2 bg-theme-500 hover:bg-theme-600 text-white rounded-xl text-sm font-medium">儲存至雲端</button>
+            <button type="submit" id="saveBtn" class="px-5 py-2 bg-theme-500 hover:bg-theme-600 text-white rounded-xl text-sm font-medium">儲存至雲端</button>
           </div>
         </form>
       </div>
@@ -233,13 +233,11 @@
     function updateCategoryOptions() {
       const categories = [...new Set(items.map(i => i.category))].filter(Boolean);
       
-      // 更新搜尋頁面的篩選器
       const filter = document.getElementById('categoryFilter');
       const currentFilter = filter.value;
       filter.innerHTML = '<option value="">所有自訂類別</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
       filter.value = currentFilter;
 
-      // 更新 Modal 內的類別下拉選單
       const select = document.getElementById('itemCategorySelect');
       const currentSelect = select.value;
       select.innerHTML = '<option value="">-- 請選擇已保存的類別 --</option>' +
@@ -263,13 +261,45 @@
       }
     }
 
+    // ⚡ 即時驗證貨品編號（包括格式及是否重複）
     function validateSuffixInput() {
       const input = document.getElementById('itemSuffix');
-      input.value = input.value.replace(/\D/g, '');
-      const isValidLength = input.value.length === 8;
-      document.getElementById('codeError').classList.toggle('hidden', isValidLength || !input.value);
+      const editId = document.getElementById('editingItemId').value;
+      const codeError = document.getElementById('codeError');
+      const duplicateError = document.getElementById('duplicateError');
+      const codeContainer = document.getElementById('codeContainer');
+      const saveBtn = document.getElementById('saveBtn');
 
-      document.getElementById('duplicateError').classList.add('hidden');
+      input.value = input.value.replace(/\D/g, '');
+      const suffixVal = input.value;
+      const isValidLength = suffixVal.length === 8;
+
+      // 重設提醒狀態
+      codeError.classList.add('hidden');
+      duplicateError.classList.add('hidden');
+      codeContainer.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+
+      if (suffixVal && !isValidLength) {
+        codeError.classList.remove('hidden');
+        return false;
+      }
+
+      if (isValidLength) {
+        const fullCode = '4000' + suffixVal;
+        // 即時比對是否與已有貨品編號重複（排除目前正在編輯的同一筆）
+        const isDuplicate = items.some(item => item.code === fullCode && item.id !== editId);
+
+        if (isDuplicate) {
+          duplicateError.classList.remove('hidden');
+          codeContainer.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
+          saveBtn.disabled = true;
+          saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          return false;
+        }
+      }
+
+      saveBtn.disabled = false;
+      saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
       return isValidLength;
     }
 
@@ -316,9 +346,16 @@
         document.getElementById('itemForm').reset();
         document.getElementById('editingItemId').value = '';
         document.getElementById('modalTitle').innerText = '新增零食貨品';
+        document.getElementById('codeError').classList.add('hidden');
         document.getElementById('duplicateError').classList.add('hidden');
+        document.getElementById('codeContainer').classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
         document.getElementById('itemCustomCategory').classList.add('hidden');
         document.getElementById('itemCustomCategory').required = false;
+        
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        
         clearImagePreview();
       }
       updateCategoryOptions();
@@ -338,7 +375,6 @@
       document.getElementById('itemSuffix').value = item.code ? item.code.replace('4000', '') : '';
       document.getElementById('itemName').value = item.name || '';
       document.getElementById('itemPieceCount').value = item.pieceCount || '';
-      document.getElementById('duplicateError').classList.add('hidden');
       
       updateCategoryOptions();
       const select = document.getElementById('itemCategorySelect');
@@ -366,6 +402,7 @@
       }
 
       openModal(true);
+      validateSuffixInput();
     }
 
     function handleFileUpload(e) {
@@ -448,7 +485,6 @@
       e.preventDefault();
       if (!validateSuffixInput()) return;
 
-      // 取得類別內容
       const selectValue = document.getElementById('itemCategorySelect').value;
       const customValue = document.getElementById('itemCustomCategory').value.trim();
       let finalCategory = '';
@@ -468,14 +504,6 @@
 
       const editId = document.getElementById('editingItemId').value;
       const targetCode = '4000' + document.getElementById('itemSuffix').value;
-
-      // 檢查編號重複
-      const isDuplicate = items.some(item => item.code === targetCode && item.id !== editId);
-      if (isDuplicate) {
-        document.getElementById('duplicateError').classList.remove('hidden');
-        return;
-      }
-
       const imageUrl = currentBase64Image || document.getElementById('itemImage').value;
 
       const itemData = {
