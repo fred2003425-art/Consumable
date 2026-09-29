@@ -110,12 +110,12 @@
           
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. 貨品編號 (4000 + 自行輸入 8 位數字) *</label>
-            <div id="codeContainer" class="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-theme-300">
+            <div id="codeContainer" class="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-theme-300 transition-colors">
               <span class="bg-theme-100 text-theme-800 px-3.5 py-2 font-mono font-bold border-r border-slate-200 text-sm">4000</span>
               <input type="text" id="itemSuffix" maxlength="8" placeholder="輸入後8位數字" oninput="validateSuffixInput()" required class="flex-1 px-3 py-2 text-sm font-mono tracking-wider focus:outline-none">
             </div>
             <p id="codeError" class="text-xs text-rose-500 mt-1 hidden">請輸入剛好 8 位純數字</p>
-            <p id="duplicateError" class="text-xs text-rose-500 mt-1 hidden"><i class="fas fa-exclamation-triangle mr-1"></i>此貨品編號已存在，請使用其他編號！</p>
+            <p id="duplicateError" class="text-xs text-rose-500 mt-1 hidden font-medium"><i class="fas fa-exclamation-triangle mr-1"></i>此貨品編號已存在，請使用其他編號！</p>
           </div>
 
           <div>
@@ -161,7 +161,7 @@
 
           <div class="pt-3 border-t border-purple-100 flex justify-end space-x-3">
             <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium">取消</button>
-            <button type="submit" id="saveBtn" class="px-5 py-2 bg-theme-500 hover:bg-theme-600 text-white rounded-xl text-sm font-medium">儲存至雲端</button>
+            <button type="submit" id="saveBtn" class="px-5 py-2 bg-theme-500 hover:bg-theme-600 text-white rounded-xl text-sm font-medium transition-all">儲存至雲端</button>
           </div>
         </form>
       </div>
@@ -227,6 +227,7 @@
         }
         updateCategoryOptions();
         renderItems();
+        validateSuffixInput(); // 資料更新後重新驗證
       });
     }
 
@@ -261,7 +262,7 @@
       }
     }
 
-    // ⚡ 即時驗證貨品編號（包括格式及是否重複）
+    // ⚡ 即時嚴格驗證貨品編號（包括格式及是否重複）
     function validateSuffixInput() {
       const input = document.getElementById('itemSuffix');
       const editId = document.getElementById('editingItemId').value;
@@ -270,28 +271,32 @@
       const codeContainer = document.getElementById('codeContainer');
       const saveBtn = document.getElementById('saveBtn');
 
+      // 移除非數字字符
       input.value = input.value.replace(/\D/g, '');
-      const suffixVal = input.value;
-      const isValidLength = suffixVal.length === 8;
+      const suffixVal = input.value.trim();
 
-      // 重設提醒狀態
+      // 重設提示狀態
       codeError.classList.add('hidden');
       duplicateError.classList.add('hidden');
-      codeContainer.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+      codeContainer.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500');
 
-      if (suffixVal && !isValidLength) {
+      if (suffixVal.length > 0 && suffixVal.length < 8) {
         codeError.classList.remove('hidden');
         return false;
       }
 
-      if (isValidLength) {
-        const fullCode = '4000' + suffixVal;
-        // 即時比對是否與已有貨品編號重複（排除目前正在編輯的同一筆）
-        const isDuplicate = items.some(item => item.code === fullCode && item.id !== editId);
+      if (suffixVal.length === 8) {
+        const fullCode = ('4000' + suffixVal).trim();
+
+        // 精確即時比對是否存在重複編號
+        const isDuplicate = items.some(item => {
+          const itemCode = (item.code || '').toString().trim();
+          return itemCode === fullCode && item.id !== editId;
+        });
 
         if (isDuplicate) {
           duplicateError.classList.remove('hidden');
-          codeContainer.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
+          codeContainer.classList.add('border-rose-500', 'ring-2', 'ring-rose-500');
           saveBtn.disabled = true;
           saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
           return false;
@@ -300,11 +305,11 @@
 
       saveBtn.disabled = false;
       saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-      return isValidLength;
+      return suffixVal.length === 8;
     }
 
     function renderItems() {
-      const search = document.getElementById('searchInput').value.toLowerCase();
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
       const catFilter = document.getElementById('categoryFilter').value;
       const container = document.getElementById('itemsContainer');
       const filtered = items.filter(item => {
@@ -348,7 +353,7 @@
         document.getElementById('modalTitle').innerText = '新增零食貨品';
         document.getElementById('codeError').classList.add('hidden');
         document.getElementById('duplicateError').classList.add('hidden');
-        document.getElementById('codeContainer').classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+        document.getElementById('codeContainer').classList.remove('border-rose-500', 'ring-2', 'ring-rose-500');
         document.getElementById('itemCustomCategory').classList.add('hidden');
         document.getElementById('itemCustomCategory').required = false;
         
@@ -372,7 +377,7 @@
 
       document.getElementById('editingItemId').value = id;
       document.getElementById('modalTitle').innerText = '編輯零食貨品';
-      document.getElementById('itemSuffix').value = item.code ? item.code.replace('4000', '') : '';
+      document.getElementById('itemSuffix').value = item.code ? item.code.replace('4000', '').trim() : '';
       document.getElementById('itemName').value = item.name || '';
       document.getElementById('itemPieceCount').value = item.pieceCount || '';
       
@@ -503,7 +508,7 @@
       }
 
       const editId = document.getElementById('editingItemId').value;
-      const targetCode = '4000' + document.getElementById('itemSuffix').value;
+      const targetCode = ('4000' + document.getElementById('itemSuffix').value).trim();
       const imageUrl = currentBase64Image || document.getElementById('itemImage').value;
 
       const itemData = {
