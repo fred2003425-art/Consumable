@@ -169,8 +169,8 @@
   </div>
 
   <script>
-    // 🔒 預設解鎖密碼
-    const SYSTEM_PASSWORD = "Empoempoempo2026!";
+    // 🔒 系統通行密碼 (已修改為 111)
+    const SYSTEM_PASSWORD = "111";
 
     // 🎯 Firebase 設定金鑰
     const firebaseConfig = {
@@ -227,7 +227,7 @@
         }
         updateCategoryOptions();
         renderItems();
-        validateSuffixInput(); // 資料更新後重新驗證
+        validateSuffixInput();
       });
     }
 
@@ -262,7 +262,6 @@
       }
     }
 
-    // ⚡ 即時嚴格驗證貨品編號（包括格式及是否重複）
     function validateSuffixInput() {
       const input = document.getElementById('itemSuffix');
       const editId = document.getElementById('editingItemId').value;
@@ -271,11 +270,9 @@
       const codeContainer = document.getElementById('codeContainer');
       const saveBtn = document.getElementById('saveBtn');
 
-      // 移除非數字字符
       input.value = input.value.replace(/\D/g, '');
       const suffixVal = input.value.trim();
 
-      // 重設提示狀態
       codeError.classList.add('hidden');
       duplicateError.classList.add('hidden');
       codeContainer.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500');
@@ -288,7 +285,6 @@
       if (suffixVal.length === 8) {
         const fullCode = ('4000' + suffixVal).trim();
 
-        // 精確即時比對是否存在重複編號
         const isDuplicate = items.some(item => {
           const itemCode = (item.code || '').toString().trim();
           return itemCode === fullCode && item.id !== editId;
