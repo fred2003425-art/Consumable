@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="zh-Hant"><head>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>零食貨品目錄系統 (雲端同步版)</title>
@@ -32,7 +34,9 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
     body { font-family: 'Noto Sans TC', sans-serif; }
-  </style></head><body class="bg-purple-50/50 min-h-screen text-slate-800 pb-12">
+  </style>
+</head>
+<body class="bg-purple-50/50 min-h-screen text-slate-800 pb-12">
 
   <!-- 1. 密碼驗證遮罩 -->
   <div id="authOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -115,8 +119,7 @@
           <input type="hidden" id="editingItemId">
           
           <div>
-1.             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">貨品編號 (4000 + 自行輸入 8 位數字) *
-</label>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. 貨品編號 (4000 + 自行輸入 8 位數字) *</label>
             <div id="codeContainer" class="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-theme-300 transition-colors">
               <span class="bg-theme-100 text-theme-800 px-3 py-1.5 font-mono font-bold border-r border-slate-200 text-xs">4000</span>
               <input type="text" id="itemSuffix" maxlength="8" placeholder="輸入後8位數字" oninput="validateSuffixInput()" required class="flex-1 px-2.5 py-1.5 text-xs font-mono tracking-wider focus:outline-none">
@@ -340,18 +343,22 @@
         return;
       }
 
-      // 🎯 優化：改為精簡型小尺寸卡片佈局，圖片高度由 h-48 縮減為 h-28，更利於快速瀏覽
-      container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">` + paginatedItems.map(item => `
-        <div class="bg-white rounded-xl border border-purple-100 overflow-hidden shadow-sm hover:shadow-md transition">
-          <div class="h-28 bg-slate-100 relative">
+      // 🎯 調整為左右橫向結構（左側圖片，右側文字與按鈕）
+      container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">` + paginatedItems.map(item => `
+        <div class="bg-white rounded-xl border border-purple-100 overflow-hidden shadow-sm hover:shadow-md transition flex flex-row items-stretch">
+          <div class="w-36 sm:w-44 bg-slate-100 relative flex-shrink-0">
             <img src="${item.image || 'https://via.placeholder.com/300?text=No+Image'}" class="w-full h-full object-cover">
-            <span class="absolute top-2 left-2 bg-slate-900/80 text-theme-200 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md">${item.code}</span>
-            <span class="absolute top-2 right-2 bg-theme-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-md">${item.category}</span>
+            <span class="absolute top-2 left-2 bg-slate-900/80 text-theme-200 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">${item.code}</span>
           </div>
-          <div class="p-2.5">
-            <h3 class="font-bold text-slate-800 text-xs truncate mb-0.5" title="${item.name}">${item.name}</h3>
-            <p class="text-[11px] text-slate-500 mb-2 truncate"><i class="fas fa-box-open mr-1"></i>件數：${item.pieceCount}</p>
-            <div class="flex justify-end items-center gap-1.5 pt-1.5 border-t border-purple-50">
+          <div class="p-3 flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start gap-1 mb-1">
+                <h3 class="font-bold text-slate-800 text-xs leading-tight" title="${item.name}">${item.name}</h3>
+                <span class="bg-theme-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0">${item.category}</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mb-2"><i class="fas fa-box-open mr-1"></i>件數：${item.pieceCount}</p>
+            </div>
+            <div class="flex justify-end items-center gap-1.5 pt-2 border-t border-purple-50">
               <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-theme-50 hover:bg-theme-100 text-theme-700 text-[10px] font-medium rounded-md transition flex items-center gap-1">
                 <i class="fas fa-edit"></i> 編輯
               </button>
@@ -578,4 +585,6 @@
         db.child(id).remove();
       }
     }
-  </script></body></html>
+  </script>
+</body>
+</html>
