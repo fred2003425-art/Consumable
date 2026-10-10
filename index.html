@@ -87,15 +87,14 @@
         <div class="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1 max-w-3xl items-center flex-wrap">
           <div class="relative flex-1 min-w-[180px] w-full">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input type="text" id="searchInput" placeholder="搜尋 12 位編號或零食簡稱..." oninput="changeFilter()" class="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs">
+            <input type="text" id="searchInput" placeholder="搜尋 12 位編號或零食簡稱..." oninput="renderItems()" class="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs">
           </div>
-          <select id="categoryFilter" onchange="changeFilter()" class="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white w-full sm:w-auto">
+          <select id="categoryFilter" onchange="renderItems()" class="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white w-full sm:w-auto">
             <option value="">所有自訂類別</option>
           </select>
-          <!-- 🎯 檢視模式選擇：大圖 (每頁 1 張) / 細圖 (四宮格，每頁 4 張) -->
           <div class="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0">
             <span class="text-xs text-slate-500 whitespace-nowrap">顯示模式:</span>
-            <select id="viewModeSelect" onchange="changeFilter()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white">
+            <select id="viewModeSelect" onchange="renderItems()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white">
               <option value="large">大圖模式 (單張)</option>
               <option value="grid4" selected>細圖模式 (四宮格)</option>
             </select>
@@ -104,7 +103,6 @@
       </div>
 
       <div id="itemsContainer"></div>
-      <div id="paginationContainer" class="flex justify-center items-center gap-2 mt-4 pb-4"></div>
     </main>
 
     <!-- 新增 / 編輯 Modal 視窗 -->
@@ -195,7 +193,6 @@
     let db;
     let items = [];
     let currentBase64Image = '';
-    let currentPage = 1;
 
     window.onload = function() {
       if (sessionStorage.getItem('snack_app_auth') === 'true') {
@@ -313,18 +310,10 @@
       return suffixVal.length === 8;
     }
 
-    function changeFilter() {
-      currentPage = 1;
-      renderItems();
-    }
-
     function renderItems() {
       const search = document.getElementById('searchInput').value.toLowerCase().trim();
       const catFilter = document.getElementById('categoryFilter').value;
       const viewMode = document.getElementById('viewModeSelect').value; // 'large' 或 'grid4'
-
-      // 大圖模式每頁 1 張，細圖模式 (四宮格) 每頁固定 4 張
-      const itemsPerPage = viewMode === 'large' ? 1 : 4;
 
       const filtered = items.filter(item => {
         const matchesSearch = (item.name || '').toLowerCase().includes(search) || (item.code || '').toLowerCase().includes(search);
@@ -332,22 +321,15 @@
         return matchesSearch && matchesCat;
       });
 
-      const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-      if (currentPage > totalPages) currentPage = totalPages;
-
-      const start = (currentPage - 1) * itemsPerPage;
-      const paginatedItems = filtered.slice(start, start + itemsPerPage);
-
       const container = document.getElementById('itemsContainer');
       if (filtered.length === 0) {
         container.innerHTML = `<div class="text-center py-12 bg-white rounded-2xl border border-purple-100"><p class="text-slate-500 text-xs">目前沒有符合條件的零食貨品</p></div>`;
-        document.getElementById('paginationContainer').innerHTML = '';
         return;
       }
 
       if (viewMode === 'large') {
-        // 🎯 大圖模式：單張大卡片（原本未加分頁前的直向完整版面）
-        container.innerHTML = `<div class="space-y-4 max-w-xl mx-auto">` + paginatedItems.map(item => `
+        // 🎯 大圖模式：一頁到底，不分頁，直向完整大卡片
+        container.innerHTML = `<div class="space-y-4 max-w-xl mx-auto">` + filtered.map(item => `
           <div class="bg-white rounded-2xl border border-purple-100 overflow-hidden shadow-sm">
             <div class="h-64 sm:h-72 bg-slate-100 relative">
               <img src="${item.image || 'https://via.placeholder.com/400?text=No+Image'}" class="w-full h-full object-cover">
@@ -369,24 +351,24 @@
           </div>
         `).join('') + `</div>`;
       } else {
-        // 🎯 細圖模式 (四宮格)：2x2 排版，一個畫面剛剛好完整呈現 4 張卡片
-        container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">` + paginatedItems.map(item => `
+        // 🎯 細圖模式 (四宮格)：一頁到底，不分頁，固定 2欄（手機平板皆完美呈現 2x2 四宮格排列）
+        container.innerHTML = `<div class="grid grid-cols-2 gap-3 max-w-4xl mx-auto">` + filtered.map(item => `
           <div class="bg-white rounded-xl border border-purple-100 overflow-hidden shadow-sm flex flex-col justify-between">
-            <div class="h-36 bg-slate-100 relative">
+            <div class="h-32 sm:h-40 bg-slate-100 relative">
               <img src="${item.image || 'https://via.placeholder.com/300?text=No+Image'}" class="w-full h-full object-cover">
-              <span class="absolute top-2 left-2 bg-slate-900/80 text-theme-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded">${item.code}</span>
-              <span class="absolute top-2 right-2 bg-theme-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">${item.category}</span>
+              <span class="absolute top-1.5 left-1.5 bg-slate-900/80 text-theme-200 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">${item.code}</span>
+              <span class="absolute top-1.5 right-1.5 bg-theme-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">${item.category}</span>
             </div>
-            <div class="p-3 flex-1 flex flex-col justify-between">
+            <div class="p-2.5 flex-1 flex flex-col justify-between">
               <div>
                 <h3 class="font-bold text-slate-800 text-xs mb-0.5 truncate" title="${item.name}">${item.name}</h3>
-                <p class="text-[11px] text-slate-500 mb-2"><i class="fas fa-box-open mr-1"></i>件數：${item.pieceCount}</p>
+                <p class="text-[10px] text-slate-500 mb-1.5 truncate"><i class="fas fa-box-open mr-0.5"></i>件數：${item.pieceCount}</p>
               </div>
-              <div class="flex justify-end items-center gap-1.5 pt-2 border-t border-purple-50">
-                <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-theme-50 hover:bg-theme-100 text-theme-700 text-[10px] font-medium rounded-md transition flex items-center gap-1">
+              <div class="flex justify-end items-center gap-1 pt-1.5 border-t border-purple-50">
+                <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-theme-50 hover:bg-theme-100 text-theme-700 text-[10px] font-medium rounded transition flex items-center gap-0.5">
                   <i class="fas fa-edit"></i> 編輯
                 </button>
-                <button onclick="deleteItem('${item.id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-medium rounded-md transition flex items-center gap-1">
+                <button onclick="deleteItem('${item.id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-medium rounded transition flex items-center gap-0.5">
                   <i class="fas fa-trash"></i> 刪除
                 </button>
               </div>
@@ -394,35 +376,6 @@
           </div>
         `).join('') + `</div>`;
       }
-
-      renderPagination(totalPages);
-    }
-
-    function renderPagination(totalPages) {
-      const pagContainer = document.getElementById('paginationContainer');
-      if (totalPages <= 1) {
-        pagContainer.innerHTML = '';
-        return;
-      }
-
-      let html = `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg border border-purple-200 bg-white text-[11px] text-slate-700 disabled:opacity-40"><i class="fas fa-chevron-left"></i></button>`;
-      
-      for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-          html += `<button onclick="goToPage(${i})" class="px-2.5 py-1 rounded-lg text-[11px] font-medium ${i === currentPage ? 'bg-theme-500 text-white' : 'border border-purple-200 bg-white text-slate-700'}">${i}</button>`;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-          html += `<span class="text-slate-400 text-[11px] px-1">...</span>`;
-        }
-      }
-
-      html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg border border-purple-200 bg-white text-[11px] text-slate-700 disabled:opacity-40"><i class="fas fa-chevron-right"></i></button>`;
-      pagContainer.innerHTML = html;
-    }
-
-    function goToPage(page) {
-      currentPage = page;
-      renderItems();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function openModal(editMode = false) {
