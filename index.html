@@ -1,3 +1,8 @@
+沒問題！我已經根據你提供的程式碼，在「所有自訂類別」下拉選單的下方，精準地加入了當前畫面顯示數量的選擇功能（提供 **1、2、4、8** 個項目供選擇），並且加入了對應的分頁切換邏輯，其他所有功能與密碼 `111` 都保持不變。
+
+以下是完整的最新程式碼：
+
+```html
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -84,18 +89,29 @@
 
     <main class="max-w-7xl mx-auto px-4 mt-6">
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 max-w-2xl">
-          <div class="relative flex-1">
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 max-w-3xl items-center flex-wrap">
+          <div class="relative flex-1 min-w-[200px]">
             <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" id="searchInput" placeholder="搜尋 12 位編號或零食簡稱..." oninput="renderItems()" class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-sm">
+            <input type="text" id="searchInput" placeholder="搜尋 12 位編號或零食簡稱..." oninput="changeFilter()" class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-sm">
           </div>
-          <select id="categoryFilter" onchange="renderItems()" class="px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-sm bg-white">
+          <select id="categoryFilter" onchange="changeFilter()" class="px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-sm bg-white">
             <option value="">所有自訂類別</option>
           </select>
+          <!-- 🎯 在自訂類別下方／旁邊新增每頁顯示數量選單 (1, 2, 4, 8) -->
+          <div class="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+            <span class="text-xs text-slate-500 whitespace-nowrap">每頁顯示:</span>
+            <select id="itemsPerPageSelect" onchange="changeFilter()" class="px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-sm bg-white">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4" selected>4</option>
+              <option value="8">8</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <div id="itemsContainer"></div>
+      <div id="paginationContainer" class="flex justify-center items-center gap-2 mt-6 pb-6"></div>
     </main>
 
     <!-- 新增 / 編輯 Modal 視窗 -->
@@ -169,7 +185,7 @@
   </div>
 
   <script>
-    // 🔒 系統通行密碼 (已修改為 111)
+    // 🔒 系統通行密碼
     const SYSTEM_PASSWORD = "111";
 
     // 🎯 Firebase 設定金鑰
@@ -187,6 +203,7 @@
     let db;
     let items = [];
     let currentBase64Image = '';
+    let currentPage = 1;
 
     window.onload = function() {
       if (sessionStorage.getItem('snack_app_auth') === 'true') {
@@ -304,22 +321,36 @@
       return suffixVal.length === 8;
     }
 
+    function changeFilter() {
+      currentPage = 1;
+      renderItems();
+    }
+
     function renderItems() {
       const search = document.getElementById('searchInput').value.toLowerCase().trim();
       const catFilter = document.getElementById('categoryFilter').value;
-      const container = document.getElementById('itemsContainer');
+      const itemsPerPage = parseInt(document.getElementById('itemsPerPageSelect').value) || 4;
+
       const filtered = items.filter(item => {
         const matchesSearch = (item.name || '').toLowerCase().includes(search) || (item.code || '').toLowerCase().includes(search);
         const matchesCat = !catFilter || item.category === catFilter;
         return matchesSearch && matchesCat;
       });
 
+      const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const start = (currentPage - 1) * itemsPerPage;
+      const paginatedItems = filtered.slice(start, start + itemsPerPage);
+
+      const container = document.getElementById('itemsContainer');
       if (filtered.length === 0) {
         container.innerHTML = `<div class="text-center py-16 bg-white rounded-2xl border border-purple-100"><p class="text-slate-500 text-sm">目前沒有符合條件的零食貨品</p></div>`;
+        document.getElementById('paginationContainer').innerHTML = '';
         return;
       }
 
-      container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">` + filtered.map(item => `
+      container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">` + paginatedItems.map(item => `
         <div class="bg-white rounded-2xl border border-purple-100 overflow-hidden shadow-sm hover:shadow-md transition">
           <div class="h-48 bg-slate-100 relative">
             <img src="${item.image || 'https://via.placeholder.com/300?text=No+Image'}" class="w-full h-full object-cover">
@@ -340,6 +371,35 @@
           </div>
         </div>
       `).join('') + `</div>`;
+
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      const pagContainer = document.getElementById('paginationContainer');
+      if (totalPages <= 1) {
+        pagContainer.innerHTML = '';
+        return;
+      }
+
+      let html = `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-purple-200 bg-white text-xs text-slate-700 disabled:opacity-40"><i class="fas fa-chevron-left"></i></button>`;
+      
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+          html += `<button onclick="goToPage(${i})" class="px-3 py-1.5 rounded-lg text-xs font-medium ${i === currentPage ? 'bg-theme-500 text-white' : 'border border-purple-200 bg-white text-slate-700'}">${i}</button>`;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+          html += `<span class="text-slate-400 text-xs px-1">...</span>`;
+        }
+      }
+
+      html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-purple-200 bg-white text-xs text-slate-700 disabled:opacity-40"><i class="fas fa-chevron-right"></i></button>`;
+      pagContainer.innerHTML = html;
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderItems();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function openModal(editMode = false) {
@@ -530,3 +590,5 @@
   </script>
 </body>
 </html>
+
+```
