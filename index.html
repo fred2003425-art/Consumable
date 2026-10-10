@@ -92,13 +92,12 @@
           <select id="categoryFilter" onchange="changeFilter()" class="px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white w-full sm:w-auto">
             <option value="">所有自訂類別</option>
           </select>
+          <!-- 🎯 檢視模式選擇：大圖 (每頁 1 張) / 細圖 (四宮格，每頁 4 張) -->
           <div class="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0">
-            <span class="text-xs text-slate-500 whitespace-nowrap">每頁顯示:</span>
-            <select id="itemsPerPageSelect" onchange="changeFilter()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="4" selected>4</option>
-              <option value="8">8</option>
+            <span class="text-xs text-slate-500 whitespace-nowrap">顯示模式:</span>
+            <select id="viewModeSelect" onchange="changeFilter()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-theme-300 text-xs bg-white">
+              <option value="large">大圖模式 (單張)</option>
+              <option value="grid4" selected>細圖模式 (四宮格)</option>
             </select>
           </div>
         </div>
@@ -322,7 +321,10 @@
     function renderItems() {
       const search = document.getElementById('searchInput').value.toLowerCase().trim();
       const catFilter = document.getElementById('categoryFilter').value;
-      const itemsPerPage = parseInt(document.getElementById('itemsPerPageSelect').value) || 4;
+      const viewMode = document.getElementById('viewModeSelect').value; // 'large' 或 'grid4'
+
+      // 大圖模式每頁 1 張，細圖模式 (四宮格) 每頁固定 4 張
+      const itemsPerPage = viewMode === 'large' ? 1 : 4;
 
       const filtered = items.filter(item => {
         const matchesSearch = (item.name || '').toLowerCase().includes(search) || (item.code || '').toLowerCase().includes(search);
@@ -343,32 +345,55 @@
         return;
       }
 
-      // 🎯 調整為左右橫向結構（左側圖片，右側文字與按鈕）
-      container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">` + paginatedItems.map(item => `
-        <div class="bg-white rounded-xl border border-purple-100 overflow-hidden shadow-sm hover:shadow-md transition flex flex-row items-stretch">
-          <div class="w-36 sm:w-44 bg-slate-100 relative flex-shrink-0">
-            <img src="${item.image || 'https://via.placeholder.com/300?text=No+Image'}" class="w-full h-full object-cover">
-            <span class="absolute top-2 left-2 bg-slate-900/80 text-theme-200 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">${item.code}</span>
-          </div>
-          <div class="p-3 flex-1 flex flex-col justify-between">
-            <div>
-              <div class="flex justify-between items-start gap-1 mb-1">
-                <h3 class="font-bold text-slate-800 text-xs leading-tight" title="${item.name}">${item.name}</h3>
-                <span class="bg-theme-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0">${item.category}</span>
+      if (viewMode === 'large') {
+        // 🎯 大圖模式：單張大卡片（原本未加分頁前的直向完整版面）
+        container.innerHTML = `<div class="space-y-4 max-w-xl mx-auto">` + paginatedItems.map(item => `
+          <div class="bg-white rounded-2xl border border-purple-100 overflow-hidden shadow-sm">
+            <div class="h-64 sm:h-72 bg-slate-100 relative">
+              <img src="${item.image || 'https://via.placeholder.com/400?text=No+Image'}" class="w-full h-full object-cover">
+              <span class="absolute top-3 left-3 bg-slate-900/80 text-theme-200 text-xs font-mono font-bold px-3 py-1 rounded-lg">${item.code}</span>
+              <span class="absolute top-3 right-3 bg-theme-500 text-white text-xs font-bold px-3 py-1 rounded-lg">${item.category}</span>
+            </div>
+            <div class="p-4">
+              <h3 class="font-bold text-slate-800 text-base mb-1">${item.name}</h3>
+              <p class="text-xs text-slate-500 mb-4"><i class="fas fa-box-open mr-1"></i>件數：${item.pieceCount}</p>
+              <div class="flex justify-end items-center gap-2 pt-3 border-t border-purple-50">
+                <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-theme-50 hover:bg-theme-100 text-theme-700 text-xs font-medium rounded-lg transition flex items-center gap-1">
+                  <i class="fas fa-edit"></i> 編輯
+                </button>
+                <button onclick="deleteItem('${item.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium rounded-lg transition flex items-center gap-1">
+                  <i class="fas fa-trash"></i> 刪除
+                </button>
               </div>
-              <p class="text-[11px] text-slate-500 mb-2"><i class="fas fa-box-open mr-1"></i>件數：${item.pieceCount}</p>
-            </div>
-            <div class="flex justify-end items-center gap-1.5 pt-2 border-t border-purple-50">
-              <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-theme-50 hover:bg-theme-100 text-theme-700 text-[10px] font-medium rounded-md transition flex items-center gap-1">
-                <i class="fas fa-edit"></i> 編輯
-              </button>
-              <button onclick="deleteItem('${item.id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-medium rounded-md transition flex items-center gap-1">
-                <i class="fas fa-trash"></i> 刪除
-              </button>
             </div>
           </div>
-        </div>
-      `).join('') + `</div>`;
+        `).join('') + `</div>`;
+      } else {
+        // 🎯 細圖模式 (四宮格)：2x2 排版，一個畫面剛剛好完整呈現 4 張卡片
+        container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">` + paginatedItems.map(item => `
+          <div class="bg-white rounded-xl border border-purple-100 overflow-hidden shadow-sm flex flex-col justify-between">
+            <div class="h-36 bg-slate-100 relative">
+              <img src="${item.image || 'https://via.placeholder.com/300?text=No+Image'}" class="w-full h-full object-cover">
+              <span class="absolute top-2 left-2 bg-slate-900/80 text-theme-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded">${item.code}</span>
+              <span class="absolute top-2 right-2 bg-theme-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">${item.category}</span>
+            </div>
+            <div class="p-3 flex-1 flex flex-col justify-between">
+              <div>
+                <h3 class="font-bold text-slate-800 text-xs mb-0.5 truncate" title="${item.name}">${item.name}</h3>
+                <p class="text-[11px] text-slate-500 mb-2"><i class="fas fa-box-open mr-1"></i>件數：${item.pieceCount}</p>
+              </div>
+              <div class="flex justify-end items-center gap-1.5 pt-2 border-t border-purple-50">
+                <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-theme-50 hover:bg-theme-100 text-theme-700 text-[10px] font-medium rounded-md transition flex items-center gap-1">
+                  <i class="fas fa-edit"></i> 編輯
+                </button>
+                <button onclick="deleteItem('${item.id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-medium rounded-md transition flex items-center gap-1">
+                  <i class="fas fa-trash"></i> 刪除
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('') + `</div>`;
+      }
 
       renderPagination(totalPages);
     }
