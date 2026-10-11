@@ -231,6 +231,14 @@
         if (data) {
           Object.keys(data).forEach(key => items.push({ id: key, ...data[key] }));
         }
+        
+        // 🎯 依照貨品編號由小到大排序 (數字大小排序)
+        items.sort((a, b) => {
+          const codeA = (a.code || '').toString().trim();
+          const codeB = (b.code || '').toString().trim();
+          return codeA.localeCompare(codeB, undefined, { numeric: true });
+        });
+
         updateCategoryOptions();
         renderItems();
         validateSuffixInput();
@@ -328,7 +336,7 @@
       }
 
       if (viewMode === 'large') {
-        // 🎯 大圖模式：一頁到底，不分頁，直向完整大卡片
+        // 🎯 大圖模式：一頁到底，直向完整大卡片
         container.innerHTML = `<div class="space-y-4 max-w-xl mx-auto">` + filtered.map(item => `
           <div class="bg-white rounded-2xl border border-purple-100 overflow-hidden shadow-sm">
             <div class="h-64 sm:h-72 bg-slate-100 relative">
@@ -351,7 +359,7 @@
           </div>
         `).join('') + `</div>`;
       } else {
-        // 🎯 細圖模式 (四宮格)：一頁到底，不分頁，固定 2欄（手機平板皆完美呈現 2x2 四宮格排列）
+        // 🎯 細圖模式 (四宮格)：一頁到底，固定 2 欄 2x2 四宮格排列
         container.innerHTML = `<div class="grid grid-cols-2 gap-3 max-w-4xl mx-auto">` + filtered.map(item => `
           <div class="bg-white rounded-xl border border-purple-100 overflow-hidden shadow-sm flex flex-col justify-between">
             <div class="h-32 sm:h-40 bg-slate-100 relative">
